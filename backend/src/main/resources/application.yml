@@ -1,0 +1,41 @@
+micronaut:
+  application:
+    name: backend
+  security:
+    authentication: bearer
+    token:
+      jwt:
+        signatures:
+          secret:
+            generator:
+              secret: "pleaseChangeThisSecretForProduction"
+              jws-algorithm: HS256
+        generator:
+          access-token:
+            expiration: 3600 # 1 hour in seconds
+
+datasources:
+  default:
+    url: jdbc:postgresql://localhost:5433/seatly
+    driverClassName: org.postgresql.Driver
+    username: seatly_user
+    password: secret
+    schema-generate: NONE
+    dialect: POSTGRES
+    db-type: postgres
+
+jpa:
+  default:
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: none
+        show_sql: true
+        format_sql: true
+
+flyway:
+  datasources:
+    default:
+      enabled: true
+      locations:
+        - classpath:db/migration
