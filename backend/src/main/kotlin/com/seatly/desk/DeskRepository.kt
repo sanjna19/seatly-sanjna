@@ -1,4 +1,4 @@
-package com.seatly.booking.desk
+package com.seatly.desk
 
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
