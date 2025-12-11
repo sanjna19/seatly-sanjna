@@ -300,4 +300,124 @@ class DeskControllerTest {
     assertEquals(5, otherSlots.size)
     assertTrue(otherSlots.all { it.status == AvailabilityStatus.AVAILABLE })
   }
+
+  @Test
+  fun `should create recurring weekly bookings successfully`() {
+    val desk = createDesk(
+      client = client,
+      authToken = authToken,
+      name = "Recurring Desk",
+      location = "Floor R",
+    )
+    val deskId = desk.id!!
+
+    val start = LocalDateTime.now().plusHours(1).truncatedTo(ChronoUnit.MINUTES)
+    val end = start.plusMinutes(30)
+
+    val request = CreateBookingRequest(
+      startAt = start,
+      endAt = end,
+      recurring = true,
+      weeks = 4
+    )
+
+    val response = client.toBlocking().exchange(
+      HttpRequest.POST("/desks/$deskId/bookings", request).bearerAuth(authToken),
+      BookingResponse::class.java
+    )
+
+    assertEquals(HttpStatus.CREATED, response.status)
+
+    // Validate: 4 bookings were saved
+    val bookings = bookingRepository.findOverlappingBookings(
+      deskId = deskId,
+      startAt = start.minusDays(1),
+      endAt = end.plusWeeks(4).plusDays(1)
+    )
+
+    assertEquals(4, bookings.size)
+
+    // Validate they are spaced 1 week apart
+    for (i in 0 until 4) {
+      assertEquals(start.plusWeeks(i.toLong()), bookings[i].startAt)
+      assertEquals(end.plusWeeks(i.toLong()), bookings[i].endAt)
+    }
+  }
+
+  @Test
+  fun `should reject recurring booking if any week conflicts`() {
+    val desk = createDesk(
+      client = client,
+      authToken = authToken,
+      name = "Conflict Desk",
+      location = "Floor C",
+    )
+    val deskId = desk.id!!
+
+    val base = LocalDateTime.now().plusHours(1).truncatedTo(ChronoUnit.MINUTES)
+    val start = base
+    val end = base.plusMinutes(30)
+
+    // Create an existing booking that will conflict with week 2
+    bookingRepository.save(
+      Booking(
+        deskId = deskId,
+        userId = authUser.id!!,
+        startAt = start.plusWeeks(1),
+        endAt = end.plusWeeks(1)
+      )
+    )
+
+    val recurringRequest = CreateBookingRequest(
+      startAt = start,
+      endAt = end,
+      recurring = true,
+      weeks = 4
+    )
+
+    val exception = assertThrows(HttpClientResponseException::class.java) {
+      client.toBlocking().exchange(
+        HttpRequest.POST("/desks/$deskId/bookings", recurringRequest)
+          .bearerAuth(authToken),
+        BookingResponse::class.java
+      )
+    }
+
+    assertEquals(HttpStatus.BAD_REQUEST, exception.status)
+
+    // Should not create ANY bookings
+    assertTrue(bookingRepository.findAll().size == 1)
+  }
+
+  @Test
+  fun `should handle single booking when recurring is false`() {
+    val desk = createDesk(
+      client = client,
+      authToken = authToken,
+      name = "Single Desk",
+      location = "Floor S",
+    )
+    val deskId = desk.id!!
+
+    val start = LocalDateTime.now().plusHours(1).truncatedTo(ChronoUnit.MINUTES)
+    val end = start.plusMinutes(30)
+
+    val request = CreateBookingRequest(
+      startAt = start,
+      endAt = end,
+      recurring = false,
+      weeks = 10 // ignored
+    )
+
+    val response = client.toBlocking().exchange(
+      HttpRequest.POST("/desks/$deskId/bookings", request).bearerAuth(authToken),
+      BookingResponse::class.java
+    )
+
+    assertEquals(HttpStatus.CREATED, response.status)
+    assertEquals(1, bookingRepository.findAll().size)
+  }
+
+
+
 }

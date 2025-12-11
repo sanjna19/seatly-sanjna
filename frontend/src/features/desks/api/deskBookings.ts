@@ -15,6 +15,8 @@ export type CreateBookingInput = {
   deskId: number;
   startAt: string;
   endAt: string;
+  recurring?: boolean;
+  weeks?: number;
 };
 
 type ApiError = {
@@ -103,7 +105,11 @@ async function createBooking(
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({startAt, endAt}),
+    body: JSON.stringify({startAt,
+      endAt,
+      recurring: input.recurring ?? false,
+      weeks: input.weeks ?? 1,
+    }),
   });
 
   if (!response.ok) {

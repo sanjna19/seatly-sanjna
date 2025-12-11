@@ -125,8 +125,12 @@ data class AvailabilityResponse(
 data class CreateBookingRequest(
   @field:NotNull
   val startAt: LocalDateTime,
+
   @field:NotNull
   val endAt: LocalDateTime,
+
+  val recurring: Boolean = false,   // new
+  val weeks: Int = 1                // new
 ) {
   fun toCommand(
     deskId: Long,
@@ -137,8 +141,11 @@ data class CreateBookingRequest(
       userId = userId,
       startAt = startAt,
       endAt = endAt,
+      recurring = recurring,   // new
+      weeks = weeks            // new
     )
 }
+
 
 @Serdeable
 data class BookingResponse(
