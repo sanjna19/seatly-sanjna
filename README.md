@@ -41,11 +41,11 @@ Recurring bookings appear the same as individual bookings:
 -   They block their respective time slots in the availability table.
 -   No new view, editing, or deletion logic was introduced (per requirements).
 
- Design Approach
+### Design Approach
 
 The main idea was to extend the existing createBooking flow without modifying any of the persistence models or introducing new tables.
 
-Key design choices:
+## Key design choices:
 
 -   No schema changes\
     Recurring bookings are stored as individual bookings, one per week.
@@ -63,7 +63,7 @@ Key design choices:
 -   Simple, predictable behavior\
     No special handling or metadata needed for recurring series.
 
-🛠 Backend Logic Summary
+### Backend Logic Summary
 
 New fields added to CreateBookingRequest:
 
@@ -80,7 +80,7 @@ Recurrence algorithm:
 -   Validate all occurrences for overlap.
 -   Save all occurrences only if validation succeeds.
 
-Error handling
+### Error handling
 
 All conflict errors now throw:
 
@@ -88,7 +88,7 @@ HttpStatusException(HttpStatus.BAD_REQUEST, "...message...")
 
 so that Micronaut returns meaningful HTTP status codes.
 
-🖥 Frontend Changes
+### Frontend Changes
 
 -   Added a checkbox: Repeat weekly
 -   Added an input: Number of weeks
