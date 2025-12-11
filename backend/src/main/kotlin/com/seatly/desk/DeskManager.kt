@@ -3,6 +3,9 @@ package com.seatly.desk
 import jakarta.inject.Singleton
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
+import io.micronaut.http.exceptions.HttpStatusException
+import io.micronaut.http.HttpStatus
+
 
 @Singleton
 class DeskManager(
@@ -85,20 +88,61 @@ class DeskManager(
     val normalizedStart = command.startAt.truncatedTo(ChronoUnit.MINUTES)
     val normalizedEnd = command.endAt.truncatedTo(ChronoUnit.MINUTES)
 
-    if (bookingRepository.existsOverlappingBooking(command.deskId, normalizedStart, normalizedEnd)) {
-      throw IllegalStateException("Desk is already booked for the given time range")
+    if (!command.recurring) {
+
+      if (bookingRepository.existsOverlappingBooking(command.deskId, normalizedStart, normalizedEnd)) {
+        throw HttpStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Desk is already booked for the given time range"
+        )
+      }
+
+      val booking =
+        Booking(
+          deskId = command.deskId,
+          userId = command.userId,
+          startAt = normalizedStart,
+          endAt = normalizedEnd,
+        )
+
+      val savedBooking = bookingRepository.save(booking)
+      return BookingDto.from(savedBooking)
+    }
+    // Generate all weekly occurrences
+    val occurrences = (0 until command.weeks).map { i ->
+      val newStart = normalizedStart.plusWeeks(i.toLong())
+      val newEnd = normalizedEnd.plusWeeks(i.toLong())
+      newStart to newEnd
     }
 
-    val booking =
-      Booking(
+    // Validate ALL occurrences before saving anything
+    occurrences.forEach { (start, end) ->
+      if (bookingRepository.existsOverlappingBooking(
+          command.deskId,
+          start,
+          end
+        )
+      ) {
+        throw HttpStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Recurring booking conflicts with an existing booking on: $start"
+        )
+      }
+    }
+
+    // Save ALL occurrences (atomic behavior)
+    val savedBookings = occurrences.map { (start, end) ->
+      val booking = Booking(
         deskId = command.deskId,
         userId = command.userId,
-        startAt = normalizedStart,
-        endAt = normalizedEnd,
+        startAt = start,
+        endAt = end,
       )
+      bookingRepository.save(booking)
+    }
 
-    val savedBooking = bookingRepository.save(booking)
-    return BookingDto.from(savedBooking)
+    // Return the FIRST booking (or we can return whole series later)
+    return BookingDto.from(savedBookings.first())
   }
 }
 
@@ -152,6 +196,8 @@ data class CreateBookingCommand(
   val userId: Long,
   val startAt: LocalDateTime,
   val endAt: LocalDateTime,
+  val recurring: Boolean,
+  val weeks: Int,
 )
 
 data class BookingDto(

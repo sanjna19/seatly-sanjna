@@ -55,6 +55,9 @@ export const DeskBookingModal: React.FC<DeskBookingModalProps> = ({
                                                                   }) => {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = React.useState<Date>(() => new Date());
+  const [recurring, setRecurring] = React.useState(false);
+  const [weeks, setWeeks] = React.useState(1);
+
 
   const start = React.useMemo(
     () =>
@@ -114,6 +117,8 @@ export const DeskBookingModal: React.FC<DeskBookingModalProps> = ({
         deskId: desk.id,
         startAt: slot.startAt,
         endAt: slot.endAt,
+        recurring,
+        weeks,
       });
 
       // Refresh availability after successful booking
@@ -199,6 +204,34 @@ export const DeskBookingModal: React.FC<DeskBookingModalProps> = ({
             Showing availability 09:00 – 17:00
           </span>
         </div>
+
+        <div style={{ marginBottom: "1rem" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <input
+              type="checkbox"
+              checked={recurring}
+              onChange={(e) => setRecurring(e.target.checked)}
+            />
+            Repeat weekly
+          </label>
+
+          {recurring && (
+            <div style={{ marginTop: "0.5rem" }}>
+              <label>
+                Number of weeks:{" "}
+                <input
+                  type="number"
+                  min={1}
+                  max={52}
+                  value={weeks}
+                  onChange={(e) => setWeeks(Number(e.target.value))}
+                  style={{ width: "60px" }}
+                />
+              </label>
+            </div>
+          )}
+        </div>
+
 
         {isLoading && <p>Loading availability...</p>}
 
